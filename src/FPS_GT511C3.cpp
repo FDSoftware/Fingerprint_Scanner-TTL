@@ -12,6 +12,9 @@
 #pragma region -= Command_Packet Definitions =-
 #endif  //__GNUC__
 
+
+#define SerOBJ Serial2 //lo uso para cambiar de interfaz serial desde aca y no tener que modificar
+#define SerDBG CompositeSerial //Interfaz serie para debug
 // returns the 12 bytes of the generated command packet
 // remember to call delete on the returned array
 byte* Command_Packet::GetPacketBytes()
@@ -197,14 +200,14 @@ bool Response_Packet::CheckParsing(byte b, byte propervalue, byte alternatevalue
 	bool retval = (b != propervalue) && (b != alternatevalue);
 	if ((UseSerialDebug) && (retval))
 	{
-		Serial.print("Response_Packet parsing error ");
-		Serial.print(varname);
-		Serial.print(" ");
-		Serial.print(propervalue, HEX);
-		Serial.print(" || ");
-		Serial.print(alternatevalue, HEX);
-		Serial.print(" != ");
-		Serial.println(b, HEX);
+		SerDBG.print("Response_Packet parsing error ");
+		SerDBG.print(varname);
+		SerDBG.print(" ");
+		SerDBG.print(propervalue, HEX);
+		SerDBG.print(" || ");
+		SerDBG.print(alternatevalue, HEX);
+		SerDBG.print(" != ");
+		SerDBG.println(b, HEX);
 	}
   return retval;
 }
@@ -233,18 +236,18 @@ bool Response_Packet::CheckParsing(byte b, byte propervalue, byte alternatevalue
 #endif  //__GNUC__
 // Creates a new object to interface with the fingerprint scanner
 FPS_GT511C3::FPS_GT511C3(uint8_t rx, uint8_t tx)
-	: _serial(rx,tx)
 {
-	pin_RX = rx;
-	pin_TX = tx;
-	_serial.begin(9600);
-	this->UseSerialDebug = false;
+	SerDBG.registerComponent();
+	SerDBG.begin(250000);
+	SerOBJ.begin(9600);
+	this->UseSerialDebug = true;
+	delay(2000);
 };
 
 // destructor
 FPS_GT511C3::~FPS_GT511C3()
 {
-	_serial.~SoftwareSerial();
+//	_serial.~SoftwareSerial();
 }
 #ifndef __GNUC__
 #pragma endregion
@@ -330,7 +333,7 @@ bool FPS_GT511C3::ChangeBaudRate(unsigned long baud)
 	if ((baud == 9600) || (baud == 19200) || (baud == 38400) || (baud == 57600) || (baud == 115200))
 	{
 
-		if (UseSerialDebug) Serial.println("FPS - ChangeBaudRate");
+		if (UseSerialDebug) SerDBG.println("FPS - ChangeBaudRate");
 		Command_Packet* cp = new Command_Packet();
 		cp->Command = Command_Packet::Commands::Open;
 		cp->ParameterFromInt(baud);
@@ -341,8 +344,8 @@ bool FPS_GT511C3::ChangeBaudRate(unsigned long baud)
 		bool retval = rp->ACK;
 		if (retval)
 		{
-			_serial.end();
-			_serial.begin(baud);
+			SerOBJ.end();
+			SerOBJ.begin(baud);
 		}
 		delete rp;
 		delete packetbytes;
@@ -355,7 +358,7 @@ bool FPS_GT511C3::ChangeBaudRate(unsigned long baud)
 // Return: The total number of enrolled fingerprints
 int FPS_GT511C3::GetEnrollCount()
 {
-	if (UseSerialDebug) Serial.println("FPS - GetEnrolledCount");
+	if (UseSerialDebug) SerDBG.println("FPS - GetEnrolledCount");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::GetEnrollCount;
 	cp->Parameter[0] = 0x00;
@@ -379,7 +382,7 @@ int FPS_GT511C3::GetEnrollCount()
 // Return: True if the ID number is enrolled, false if not
 bool FPS_GT511C3::CheckEnrolled(int id)
 {
-	if (UseSerialDebug) Serial.println("FPS - CheckEnrolled");
+	if (UseSerialDebug) SerDBG.println("FPS - CheckEnrolled");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::CheckEnrolled;
 	cp->ParameterFromInt(id);
@@ -404,7 +407,7 @@ bool FPS_GT511C3::CheckEnrolled(int id)
 //	3 - Position(ID) is already used
 int FPS_GT511C3::EnrollStart(int id)
 {
-	if (UseSerialDebug) Serial.println("FPS - EnrollStart");
+	if (UseSerialDebug) SerDBG.println("FPS - EnrollStart");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::EnrollStart;
 	cp->ParameterFromInt(id);
@@ -432,7 +435,7 @@ int FPS_GT511C3::EnrollStart(int id)
 //	3 - ID in use
 int FPS_GT511C3::Enroll1()
 {
-	if (UseSerialDebug) Serial.println("FPS - Enroll1");
+	if (UseSerialDebug) SerDBG.println("FPS - Enroll1");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::Enroll1;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -461,7 +464,7 @@ int FPS_GT511C3::Enroll1()
 //	3 - ID in use
 int FPS_GT511C3::Enroll2()
 {
-	if (UseSerialDebug) Serial.println("FPS - Enroll2");
+	if (UseSerialDebug) SerDBG.println("FPS - Enroll2");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::Enroll2;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -491,7 +494,7 @@ int FPS_GT511C3::Enroll2()
 //	3 - ID in use
 int FPS_GT511C3::Enroll3()
 {
-	if (UseSerialDebug) Serial.println("FPS - Enroll3");
+	if (UseSerialDebug) SerDBG.println("FPS - Enroll3");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::Enroll3;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -516,7 +519,7 @@ int FPS_GT511C3::Enroll3()
 // Return: true if finger pressed, false if not
 bool FPS_GT511C3::IsPressFinger()
 {
-	if (UseSerialDebug) Serial.println("FPS - IsPressFinger");
+	if (UseSerialDebug) SerDBG.println("FPS - IsPressFinger");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::IsPressFinger;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -540,7 +543,7 @@ bool FPS_GT511C3::IsPressFinger()
 // Returns: true if successful, false if position invalid
 bool FPS_GT511C3::DeleteID(int id)
 {
-	if (UseSerialDebug) Serial.println("FPS - DeleteID");
+	if (UseSerialDebug) SerDBG.println("FPS - DeleteID");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::DeleteID;
 	cp->ParameterFromInt(id);
@@ -558,7 +561,7 @@ bool FPS_GT511C3::DeleteID(int id)
 // Returns: true if successful, false if db is empty
 bool FPS_GT511C3::DeleteAll()
 {
-	if (UseSerialDebug) Serial.println("FPS - DeleteAll");
+	if (UseSerialDebug) SerDBG.println("FPS - DeleteAll");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::DeleteAll;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -581,7 +584,7 @@ bool FPS_GT511C3::DeleteAll()
 //	3 - Verified FALSE (not the correct finger)
 int FPS_GT511C3::Verify1_1(int id)
 {
-	if (UseSerialDebug) Serial.println("FPS - Verify1_1");
+	if (UseSerialDebug) SerDBG.println("FPS - Verify1_1");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::Verify1_1;
 	cp->ParameterFromInt(id);
@@ -612,7 +615,7 @@ int FPS_GT511C3::Verify1_1(int id)
 //           200, if using GT-521F32/GT-511C3
 int FPS_GT511C3::Identify1_N()
 {
-	if (UseSerialDebug) Serial.println("FPS - Identify1_N");
+	if (UseSerialDebug) SerDBG.println("FPS - Identify1_N");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::Identify1_N;
 	byte* packetbytes = cp->GetPacketBytes();
@@ -634,7 +637,7 @@ int FPS_GT511C3::Identify1_N()
 // Returns: True if ok, false if no finger pressed
 bool FPS_GT511C3::CaptureFinger(bool highquality)
 {
-	if (UseSerialDebug) Serial.println("FPS - CaptureFinger");
+	if (UseSerialDebug) SerDBG.println("FPS - CaptureFinger");
 	Command_Packet* cp = new Command_Packet();
 	cp->Command = Command_Packet::Commands::CaptureFinger;
 	if (highquality)
@@ -760,7 +763,7 @@ bool FPS_GT511C3::CaptureFinger(bool highquality)
 // Sends the command to the software serial channel
 void FPS_GT511C3::SendCommand(byte cmd[], int length)
 {
-	_serial.write(cmd, length);
+	SerOBJ.write(cmd, length);
 	if (UseSerialDebug)
 	{
 		Serial.print("FPS - SEND: ");
@@ -774,10 +777,9 @@ Response_Packet* FPS_GT511C3::GetResponse()
 {
 	byte firstbyte = 0;
 	bool done = false;
-	_serial.listen();
 	while (done == false)
 	{
-		firstbyte = (byte)_serial.read();
+		firstbyte = (byte)SerOBJ.read();
 		if (firstbyte == Response_Packet::COMMAND_START_CODE_1)
 		{
 			done = true;
@@ -787,8 +789,8 @@ Response_Packet* FPS_GT511C3::GetResponse()
 	resp[0] = firstbyte;
 	for (int i=1; i < 12; i++)
 	{
-		while (_serial.available() == false) delay(10);
-		resp[i]= (byte) _serial.read();
+		while (SerOBJ.available() == false) delay(10);
+		resp[i]= (byte) SerOBJ.read();
 	}
 	Response_Packet* rp = new Response_Packet(resp, UseSerialDebug);
 	delete resp;

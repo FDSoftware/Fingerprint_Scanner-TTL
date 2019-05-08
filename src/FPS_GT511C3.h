@@ -10,7 +10,8 @@
 #define FPS_GT511C3_h
 
 #include "Arduino.h"
-#include "SoftwareSerial.h"
+#include <USBComposite.h>
+
 #ifndef __GNUC__
 #pragma region -= Command_Packet =-
 #endif  //__GNUC__
@@ -373,7 +374,7 @@ private:
 	 void SendCommand(byte cmd[], int length);
 	 Response_Packet* GetResponse();
 	 uint8_t pin_RX,pin_TX;
-	 SoftwareSerial _serial;
+	 USBCompositeSerial CompositeSerial;
 };
 
 
